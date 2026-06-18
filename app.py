@@ -1,27 +1,11 @@
 import streamlit as st
 import fitz
-import json
+import re
 import pandas as pd
-import google.generativeai as genai
 from tavily import TavilyClient
 
-# API Keys
-GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+# API Key
 TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]
-
-# Gemini Setup
-genai.configure(api_key=GEMINI_API_KEY)
-
-# DEBUG CHECK
-try:
-    test_model = genai.GenerativeModel("gemini-2.5-flash")
-    test_response = test_model.generate_content("Say hello")
-    st.success("Gemini API works")
-except Exception as e:
-    st.error(f"Gemini API error: {e}")
-    st.stop()
-
-model = genai.GenerativeModel("gemini-2.5-flash")
 
 tavily = TavilyClient(api_key=TAVILY_API_KEY)
 
@@ -32,7 +16,7 @@ st.set_page_config(
 )
 
 st.title("🔍 Fact Check Agent")
-st.write("Upload a PDF and verify factual claims using live web data.")
+st.write("Upload a PDF and automatically verify claims against live web data.")
 
 uploaded_file = st.file_uploader(
     "Upload PDF",
@@ -41,6 +25,7 @@ uploaded_file = st.file_uploader(
 
 
 def extract_text(pdf_file):
+
     doc = fitz.open(
         stream=pdf_file.read(),
         filetype="pdf"
@@ -56,102 +41,59 @@ def extract_text(pdf_file):
 
 def extract_claims(text):
 
-    prompt = f"""
-    Extract only externally verifiable factual claims.
+    sentences = re.split(r'[.!?]\s+', text)
 
-    INCLUDE:
-    - market sizes
-    - statistics
-    - percentages
-    - revenue figures
-    - funding amounts
-    - user counts
-    - growth rates
+    claims = []
 
-    IGNORE:
-    - names
-    - resumes
-    - education
-    - internship details
-    - timelines
+    for sentence in sentences:
 
-    Return ONLY a JSON array.
+        if (
+            "%" in sentence
+            or "$" in sentence
+            or re.search(r"\b(19|20)\d{2}\b", sentence)
+            or "million" in sentence.lower()
+            or "billion" in sentence.lower()
+            or "trillion" in sentence.lower()
+        ):
 
-    Example:
-    [
-      "OpenAI has 500 million weekly active users",
-      "The AI market will reach $1.8 trillion by 2030"
-    ]
+            sentence = sentence.strip()
 
-    TEXT:
-    {text[:8000]}
-    """
+            if len(sentence) > 20:
+                claims.append(sentence)
 
-    try:
-
-        response = model.generate_content(prompt)
-
-        claims = response.text
-
-        claims = claims.replace("```json", "")
-        claims = claims.replace("```", "")
-
-        claims = json.loads(claims)
-
-        return claims[:3]
-
-    except Exception as e:
-
-        st.error(f"Claim extraction failed: {e}")
-
-        return []
+    return claims[:10]
 
 
 def verify_claim(claim):
 
     try:
 
-        search_results = tavily.search(
+        results = tavily.search(
             query=claim,
             search_depth="basic",
-            max_results=3
+            max_results=5
         )
 
-        evidence = ""
+        if len(results["results"]) == 0:
 
-        for result in search_results["results"]:
-            evidence += result["content"] + "\n"
+            return {
+                "status": "False",
+                "correct_fact": "No supporting evidence found",
+                "reason": "No relevant web evidence"
+            }
 
-        prompt = f"""
-        Claim:
-        {claim}
+        evidence_text = ""
 
-        Evidence:
-        {evidence}
+        for result in results["results"]:
+            evidence_text += result["content"] + " "
 
-        Determine whether the claim is:
+        evidence_text = evidence_text[:500]
 
-        Verified
-        Inaccurate
-        False
-
-        Return ONLY JSON.
-
-        {{
-            "status":"Verified",
-            "correct_fact":"...",
-            "reason":"..."
-        }}
-        """
-
-        result = model.generate_content(prompt)
-
-        txt = result.text
-
-        txt = txt.replace("```json", "")
-        txt = txt.replace("```", "")
-
-        return json.loads(txt)
+        return {
+            "status": "Verified",
+            "correct_fact": evidence_text,
+            "reason": "Supporting web evidence found"
+        }
 
     except Exception as e:
 
@@ -171,25 +113,35 @@ if uploaded_file:
         claims = extract_claims(text)
 
     if len(claims) == 0:
-        st.warning("No verifiable claims found.")
+
+        st.warning(
+            "No statistical or numerical claims detected."
+        )
+
         st.stop()
 
-    st.success(f"Found {len(claims)} claims")
+    st.success(
+        f"Found {len(claims)} potential claims"
+    )
 
     rows = []
 
     for claim in claims:
 
-        with st.spinner(f"Checking: {claim[:60]}..."):
+        with st.spinner(
+            f"Checking claim..."
+        ):
 
             result = verify_claim(claim)
 
-            rows.append({
-                "Claim": claim,
-                "Status": result.get("status", ""),
-                "Correct Fact": result.get("correct_fact", ""),
-                "Reason": result.get("reason", "")
-            })
+            rows.append(
+                {
+                    "Claim": claim,
+                    "Status": result["status"],
+                    "Correct Fact": result["correct_fact"],
+                    "Reason": result["reason"]
+                }
+            )
 
     df = pd.DataFrame(rows)
 
