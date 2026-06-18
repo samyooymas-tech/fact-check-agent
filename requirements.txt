@@ -1,4 +1,6 @@
-ddgs>=9.0.0
-openai>=1.0.0
-python-dotenv>=1.0.0
-rich>=13.0.0
+streamlit
+PyMuPDF
+pandas
+google-generativeai
+tavily-python
+python-dotenv
