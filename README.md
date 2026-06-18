@@ -1,73 +1,192 @@
 # Fact Check Agent
 
-A CLI tool that fact-checks claims by searching the web and analyzing evidence with an LLM.
+## Overview
 
-## How it works
+Fact Check Agent is a web-based application that automatically verifies factual claims found in PDF documents.
 
-1. You provide a claim (text or file).
-2. The agent searches the web for relevant sources.
-3. An LLM reviews the sources and returns a structured verdict.
+Users can upload any PDF containing statistics, dates, financial figures, market-size estimates, user counts, or other factual statements. The system extracts potential claims, searches live web sources for supporting evidence, and generates a fact-check report.
 
-## Setup
+This project was developed as part of an AI Product & Engineering assessment focused on automated claim verification.
+
+---
+
+## Features
+
+### PDF Upload
+
+Upload any PDF document through a simple web interface.
+
+### Automated Claim Extraction
+
+The application automatically identifies potentially verifiable claims such as:
+
+* Statistics
+* Percentages
+* Financial figures
+* Market size estimates
+* User counts
+* Dates and years
+
+### Live Web Verification
+
+For each extracted claim, the system searches the web using Tavily Search API to retrieve relevant supporting evidence.
+
+### Fact Check Report
+
+The application generates a structured report containing:
+
+* Extracted Claim
+* Verification Status
+* Supporting Evidence
+* Explanation
+
+---
+
+## System Workflow
+
+PDF Upload
+
+↓
+
+Text Extraction (PyMuPDF)
+
+↓
+
+Claim Detection
+
+↓
+
+Web Search (Tavily API)
+
+↓
+
+Evidence Collection
+
+↓
+
+Fact Check Report Generation
+
+---
+
+## Technology Stack
+
+### Frontend
+
+* Streamlit
+
+### Document Processing
+
+* PyMuPDF (fitz)
+
+### Search & Verification
+
+* Tavily Search API
+
+### Data Processing
+
+* Pandas
+* Python
+
+### Deployment
+
+* Streamlit Community Cloud
+
+---
+
+## Project Structure
+
+```text
+fact-check-agent/
+│
+├── app.py
+├── requirements.txt
+├── README.md
+│
+└── .streamlit/
+    └── secrets.toml
+```
+
+---
+
+## Installation
 
 ```bash
-cd ~/Desktop/fact-check-agent
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-cp .env.example .env
+git clone <repository-url>
+
+cd fact-check-agent
+
+pip install -r requirements.txt
 ```
 
-Add your OpenAI API key to `.env`:
+---
 
+## Environment Variables
+
+Create Streamlit secrets:
+
+```toml
+TAVILY_API_KEY="your_api_key"
 ```
-OPENAI_API_KEY=sk-...
-```
 
-## Usage
+---
 
-Check a claim from the command line:
+## Running Locally
 
 ```bash
-fact-check "Coffee is the most consumed beverage in the world"
+streamlit run app.py
 ```
 
-Or run as a module:
+or
 
 ```bash
-python -m fact_check_agent "Coffee is the most consumed beverage in the world"
+python3 -m streamlit run app.py
 ```
 
-Read a claim from a file:
+---
 
-```bash
-fact-check -f claim.txt
-```
+## Deployment
 
-Get JSON output:
+The application is deployed using Streamlit Community Cloud.
 
-```bash
-fact-check --json "The Great Wall of China is visible from space"
-```
+Deployment includes:
 
-Adjust how many sources to gather:
+* Public web access
+* Secure API key management
+* Automatic redeployment from GitHub
 
-```bash
-fact-check -n 12 "Vaccines cause autism"
-```
+---
 
-## Output
+## Example Use Cases
 
-The agent returns:
+### Marketing Content Validation
 
-- **Verdict** — `true`, `mostly_true`, `mixed`, `mostly_false`, `false`, or `unverifiable`
-- **Confidence** — 0–100%
-- **Summary** — short explanation for a general audience
-- **Reasoning** — evidence-based analysis
-- **Sources** — URLs used in the review
+Verify statistics and market-size claims before publication.
 
-## Notes
+### Research Reports
 
-- Results depend on search quality and the sources found. Treat output as a starting point, not a final authority.
-- Requires network access and a valid `OPENAI_API_KEY`.
-- Optional: set `OPENAI_MODEL` in `.env` (default: `gpt-4o-mini`).
+Validate cited numbers and factual statements.
+
+### Business Presentations
+
+Check accuracy of financial and industry claims.
+
+### Product Documentation
+
+Verify technical statements using live web evidence.
+
+---
+
+## Future Improvements
+
+* LLM-based reasoning layer for deeper fact verification
+* Source credibility scoring
+* Multi-source confidence ranking
+* PDF annotation with highlighted inaccuracies
+* Downloadable verification reports
+* Batch document processing
+
+---
+
+## Disclaimer
+
+Fact Check Agent provides automated evidence gathering and claim verification assistance. Results should be reviewed by a human before being used in legal, medical, financial, or other high-stakes contexts.
