@@ -9,7 +9,17 @@ from tavily import TavilyClient
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 TAVILY_API_KEY = st.secrets["TAVILY_API_KEY"]
 
+# Gemini Setup
 genai.configure(api_key=GEMINI_API_KEY)
+
+# DEBUG CHECK
+try:
+    test_model = genai.GenerativeModel("gemini-2.5-flash")
+    test_response = test_model.generate_content("Say hello")
+    st.success("Gemini API works")
+except Exception as e:
+    st.error(f"Gemini API error: {e}")
+    st.stop()
 
 model = genai.GenerativeModel("gemini-2.5-flash")
 
@@ -31,7 +41,6 @@ uploaded_file = st.file_uploader(
 
 
 def extract_text(pdf_file):
-
     doc = fitz.open(
         stream=pdf_file.read(),
         filetype="pdf"
@@ -58,24 +67,20 @@ def extract_claims(text):
     - funding amounts
     - user counts
     - growth rates
-    - industry reports
 
     IGNORE:
     - names
-    - addresses
     - resumes
-    - employment dates
-    - education history
+    - education
     - internship details
-    - project timelines
+    - timelines
 
     Return ONLY a JSON array.
 
     Example:
-
     [
-      "The global AI market will reach $1.8 trillion by 2030",
-      "OpenAI has over 500 million weekly active users"
+      "OpenAI has 500 million weekly active users",
+      "The AI market will reach $1.8 trillion by 2030"
     ]
 
     TEXT:
@@ -93,7 +98,6 @@ def extract_claims(text):
 
         claims = json.loads(claims)
 
-        # Limit to avoid quota issues
         return claims[:3]
 
     except Exception as e:
@@ -167,9 +171,7 @@ if uploaded_file:
         claims = extract_claims(text)
 
     if len(claims) == 0:
-
         st.warning("No verifiable claims found.")
-
         st.stop()
 
     st.success(f"Found {len(claims)} claims")
